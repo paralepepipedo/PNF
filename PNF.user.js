@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PNF · Respuesta a oficios de Fiscalización
 // @namespace    pnf.seremitt
-// @version      0.4.0
+// @version      0.4.2
 // @description  Responde los oficios de Fiscalización desde el SGD: lee el oficio, arma el análisis técnico y el memo, y lo envía. Ventana, configuración, respaldo, usuarios, alertas, lectura de oficios, análisis técnico, memo, Excel y aportes de supervisores.
 // @match        https://sgd.mtt.cl/*
 // @noframes
@@ -24,7 +24,7 @@
 
 (function () {
   'use strict';
-  const VERSION = '0.4.0';
+  const VERSION = '0.4.2';
   const URL_ACTUALIZAR = 'https://raw.githubusercontent.com/paralepepipedo/PNF/main/PNF.user.js'; // debe coincidir con @updateURL
   const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   if (window.top !== window.self || document.getElementById('pnf-host')) return;
