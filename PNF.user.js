@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PNF · Respuesta a oficios de Fiscalización
 // @namespace    pnf.seremitt
-// @version      0.4.3
+// @version      0.4.4
 // @description  Responde los oficios de Fiscalización desde el SGD: lee el oficio, arma el análisis técnico y el memo, y lo envía. Ventana, configuración, respaldo, usuarios, alertas, lectura de oficios, análisis técnico, memo, Excel y aportes de supervisores.
 // @match        https://sgd.mtt.cl/*
 // @noframes
@@ -24,7 +24,7 @@
 
 (function () {
   'use strict';
-  const VERSION = '0.4.3';
+  const VERSION = '0.4.4';
   const URL_ACTUALIZAR = 'https://raw.githubusercontent.com/paralepepipedo/PNF/main/PNF.user.js'; // debe coincidir con @updateURL
   const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   if (window.top !== window.self || document.getElementById('pnf-host')) return;
@@ -321,7 +321,7 @@
   --sel:#2f64b5; --band:#f2f5f9; --grid:#c2c6cc; --thbg:linear-gradient(#fff,#d9d9d9); --fb:#9a9a9a; --fbg:#f7f6f3; --legend:#1d3d6e; --tabbg:linear-gradient(#f4f3ef,#d9d7d1); --acc:#2f64b5;
   --ok:#d6f0cf; --warn:#fff5c2; --bad:#f8d2d2; --note:#fff8d0; font:12px var(--font); color:#000; }
 .win { position:fixed; top:14px; left:50%; transform:translateX(-50%); width:min(1280px,calc(100vw - 28px)); height:calc(100vh - 28px); display:none; flex-direction:column; z-index:2147483000; background:var(--face); border:1px solid #6f8fb5; border-radius:5px; box-shadow:0 8px 26px rgba(0,0,0,.45); padding:3px; }
-.win.on { display:flex; }
+.win.on { display:flex; } .win.ancha { width:min(1440px,calc(100vw - 28px)); }
 .titlebar { background:var(--title); color:#fff; font-weight:bold; font-size:13px; display:flex; align-items:center; gap:6px; border-radius:3px 3px 0 0; margin:-3px -3px 3px; padding:4px 6px; flex:none; }
 .titlebar .ico { width:16px; height:16px; background:#fff; color:#17387a; display:inline-flex; align-items:center; justify-content:center; font-size:11px; border-radius:3px; }
 .sp { flex:1; }
@@ -593,6 +593,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
     else if (S.vista === 'config') h = vConfig();
     else h = vFutura(S.vista);
     const sc = $('.form').scrollTop, scs = [...root.querySelectorAll('#vista .lv, #vista .tw')].map(x => [x.scrollTop, x.scrollLeft]);   // las tablas con barra propia también conservan su posición
+    $('#win').classList.toggle('ancha', S.vista === 'analisis' && !!S.verFolio);   // con «Mostrar folio» la ventana se ensancha para que la tabla no necesite barra horizontal
     $('#vista').innerHTML = h; $('.form').scrollTop = sc; if (S.vista === 'oficios') renderTabla();
     root.querySelectorAll('#vista .lv, #vista .tw').forEach((x, k) => { if (scs[k]) { x.scrollTop = scs[k][0]; x.scrollLeft = scs[k][1]; } });
     if (S.foco) { const f = S.foco; S.foco = null; const tr = $('#vista tr[data-row="' + f.i + '"]'); if (tr) { tr.scrollIntoView({ block: 'nearest' }); const el = tr.querySelector(f.que === 'sel' ? '[data-catb]' : f.que === 'cus' ? '[data-cus]' : '[data-a="conf"]') || tr.querySelector('[data-catb]'); if (el) el.focus({ preventScroll: true }); tr.classList.add('foco'); } }
