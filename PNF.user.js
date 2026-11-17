@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PNF · Respuesta a oficios de Fiscalización
 // @namespace    pnf.seremitt
-// @version      0.4.2
+// @version      0.4.3
 // @description  Responde los oficios de Fiscalización desde el SGD: lee el oficio, arma el análisis técnico y el memo, y lo envía. Ventana, configuración, respaldo, usuarios, alertas, lectura de oficios, análisis técnico, memo, Excel y aportes de supervisores.
 // @match        https://sgd.mtt.cl/*
 // @noframes
@@ -24,7 +24,7 @@
 
 (function () {
   'use strict';
-  const VERSION = '0.4.2';
+  const VERSION = '0.4.3';
   const URL_ACTUALIZAR = 'https://raw.githubusercontent.com/paralepepipedo/PNF/main/PNF.user.js'; // debe coincidir con @updateURL
   const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   if (window.top !== window.self || document.getElementById('pnf-host')) return;
@@ -417,6 +417,10 @@ tr.xfila { cursor:pointer; }
 .an select { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; } .an:hover { border-color:var(--hovb); }
 td.sug { background:var(--warn) !important; } td.okc { background:var(--ok) !important; } td.sinc { background:var(--bad) !important; }
 .lv tr.foco td { box-shadow:inset 0 2px 0 var(--acc), inset 0 -2px 0 var(--acc); }
+.lv td.alt { background:var(--band) !important; } .lv td.nor { background:#fff !important; }
+.pl { display:inline-block; font-family:"Courier New",monospace; font-size:12px; padding:0 4px; margin:1px 2px 1px 0; border-radius:3px; border:1px solid #ddd; background:#fff; }
+.sinppu { color:#888; font-style:italic; font-family:"Courier New",monospace; font-size:12px; }
+.fol { font-family:"Courier New",monospace; font-size:12px; color:#17387a; white-space:nowrap; } .fcorto { display:inline-block; max-width:12ch; overflow:hidden; text-overflow:ellipsis; vertical-align:top; }
 .txt { max-width:330px; } .txt.ancho { max-width:560px; min-width:320px; }
 .pb { height:16px; background:#fff; border:1px solid var(--ib); box-shadow:var(--ish); padding:1px; min-width:240px; border-radius:3px; } .pb i { display:block; height:100%; background:linear-gradient(#93e093,#2d9a2d); border-radius:2px; }
 .visor { background:#808080; padding:14px; overflow:auto; max-height:640px; border:1px solid var(--ib); box-shadow:var(--ish); }
@@ -769,6 +773,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
     const t = e.target, d = t.dataset;
     if (d.xtam) { xlTam(d.xtam, +t.value); return; }
     if (cambioAnalisis(t, d)) { /* listo */ }
+    else if (d.verfolio !== undefined) { S.verFolio = t.checked; render(); }
     else if (d.selb !== undefined) { t.checked ? S.selB.add(+d.selb) : S.selB.delete(+d.selb); render(); }
     else if (d.filtro) { S.filtro = d.filtro; render(); }
     else if (t.name === 'apT') { const c = $('#apCat'); if (c) c.style.display = t.value === 'sug' ? 'block' : 'none'; const x = $('#apTxt'); if (x) x.placeholder = t.value === 'sug' ? 'Motivo de la sugerencia (opcional)…' : 'Escribe tu observación…'; }
@@ -1125,7 +1130,7 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
     const items = [...box.querySelectorAll('.cbi')], cur = buscar ? null : (($('.cbIn[data-cbin="' + id + '"]') || {}).value || ''), marca = (cur !== null && items.find(x => x.dataset.v === cur)) || items[0]; if (marca) marca.classList.add('hl');
   }
   const cbCerrar = () => $$('.cbList.on').forEach(x => x.classList.remove('on'));
-  function cbPick(id, v) { cbCerrar(); if (S.dirty) guardar('al cambiar de oficio'); S.sel = v; S.lec = { exp: v }; S.exp = v; S.selB.clear(); render(); }
+  function cbPick(id, v) { cbCerrar(); if (S.dirty) guardar('al cambiar de oficio'); S.sel = v; S.lec = { exp: v }; S.exp = v; S.selB.clear(); S.verFolio = false; render(); }
   /* — tabla de oficios: filtros, orden y páginas — */
   function filasOf() {
     const ofs = datos().oficios || {}, f = S.tb.f, q = (a, b) => !b || String(a).toLowerCase().includes(b.toLowerCase());
@@ -1214,7 +1219,7 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
   }
   const textoAn = b => b.cat === 'custom' ? b.custom : ((catalogo().find(c => c.id === b.cat) || {}).t || '');
   const conteo = o => { const rs = o.bloques || []; return { n: rs.length, ok: rs.filter(r => r.st === 'ok').length, sug: rs.filter(r => r.st === 'sug').length, sin: rs.filter(r => r.st === 'sin').length }; };
-  S.filtro = 'todas'; S.selB = new Set(); S.foco = null;
+  S.filtro = 'todas'; S.selB = new Set(); S.foco = null; S.verFolio = false;
 
   function barraOficio(soloGuardado) {
     const pend = soloGuardado ? null : entradaPend(), ex = pend ? pend.exp : (soloGuardado ? exAct() : ((S.lec && S.lec.exp) || exAct())), o = ex && (datos().oficios || {})[ex];
@@ -1231,16 +1236,28 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
     const t = esTit(), c = conteo(o), pct = c.n ? Math.round(c.ok * 100 / c.n) : 0, dis = t ? '' : ' disabled';
     const vis = o.bloques.map((b, i) => [b, i]).filter(([b]) => S.filtro === 'todas' || b.st === S.filtro);
     const optCat = sel => '<option value="">— elegir —</option>' + catalogo().filter(x => !x.dejar).map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.t)}</option>`).join('') + `<option value="custom" ${sel === 'custom' ? 'selected' : ''}>✎ Texto propio…</option>`;
-    const filas = vis.map(([b, i]) => {
-      const cls = clsAn(b), pl = b.items.filter(x => x.p).map(x => `<span class="mono">${esc(x.p)}</span>`).join(' · ');
+    const SIN = p => /^\s*SIN\s*PPU\s*$/i.test(p || '');
+    const tipFol = x => (x.f ? 'Folio ' + x.f : 'Sin folio') + (SIN(x.p) ? ' · Sin patente (SIN PPU)' : '');
+    const chip = x => SIN(x.p) ? `<span class="sinppu" data-tipf="${esc(tipFol(x))}">SIN PPU</span>` : `<span class="pl" data-tipf="${esc(tipFol(x))}">${esc(x.p)}</span>`;
+    const tipConteo = its => { let n = 0, sp = 0; its.forEach(x => { if (SIN(x.p)) sp++; else n++; }); if (!n && sp) return sp > 1 ? sp + ' registros sin patente (SIN PPU)' : 'Sin patente (SIN PPU)'; return n + (n === 1 ? ' placa' : ' placas') + (sp ? ' + ' + sp + ' sin patente (SIN PPU)' : ''); };
+    const filas = vis.map(([b, i], pos) => {
+      const cls = clsAn(b), alt = pos % 2 ? 'alt' : 'nor', its = b.items.filter(x => x.p), tc = tipConteo(its);
+      const gr = [];
+      if (S.verFolio) its.forEach(x => { const f = x.f || ''; let g = null; for (let k = 0; k < gr.length; k++) if (gr[k].f === f) { g = gr[k]; break; } if (!g) { g = { f, its: [] }; gr.push(g); } g.its.push(x); });
+      else gr.push({ f: '', its });
+      if (!gr.length) gr.push({ f: '', its: [] });
+      const rs = gr.length;
       const hint = b.st === 'sin' && !b.cat ? '<div style="color:#900;font-size:11px;margin-top:2px">Sin análisis sugerido: elige uno de la lista (o escribe un texto propio).</div>' : '';
-      return `<tr data-row="${i}"><td><input type="checkbox" data-selb="${i}" ${S.selB.has(i) ? 'checked' : ''} ${dis}></td><td style="white-space:nowrap">${esc(b.fecha)}</td><td class="txt">${esc(b.lugar)}</td><td>${esc(b.tipo)}</td><td class="txt ancho">${esc(b.texto)}</td><td style="min-width:110px">${pl}<div style="font-size:11px">${b.items.filter(x => x.p).length} placa(s)</div></td>` +
-        `<td class="${cls}" style="min-width:300px"><div class="an"><span>${b.cat === 'custom' ? '✎ Texto propio…' : textoAn(b) ? esc(textoAn(b)) : '<span style="color:#777">— elegir —</span>'}</span><select data-catb="${i}" ${dis}>${optCat(b.cat)}</select></div>${b.cat === 'custom' ? `<input type="text" data-cus="${i}" value="${esc(b.custom)}" placeholder="Escribe el análisis…" style="width:100%;margin-top:3px" ${dis}>` : ''}${hint}</td>` +
-        `<td class="${cls}">${estCel(b, i, dis)}</td></tr>`;
+      const ini = `<td rowspan="${rs}" class="${alt}"><input type="checkbox" data-selb="${i}" ${S.selB.has(i) ? 'checked' : ''} ${dis}></td><td rowspan="${rs}" class="${alt}" style="white-space:nowrap">${esc(b.fecha)}</td><td rowspan="${rs}" class="txt ${alt}">${esc(b.lugar)}</td><td rowspan="${rs}" class="${alt}">${esc(b.tipo)}</td><td rowspan="${rs}" class="txt ancho ${alt}">${esc(b.texto)}</td>`;
+      const fin = `<td rowspan="${rs}" class="${cls}" style="min-width:300px"><div class="an"><span>${b.cat === 'custom' ? '✎ Texto propio…' : textoAn(b) ? esc(textoAn(b)) : '<span style="color:#777">— elegir —</span>'}</span><select data-catb="${i}" ${dis}>${optCat(b.cat)}</select></div>${b.cat === 'custom' ? `<input type="text" data-cus="${i}" value="${esc(b.custom)}" placeholder="Escribe el análisis…" style="width:100%;margin-top:3px" ${dis}>` : ''}${hint}</td>` +
+        `<td rowspan="${rs}" class="${cls}">${estCel(b, i, dis)}</td>`;
+      const folTd = g => `<td class="${alt}"><span class="fol fcorto"${g.f.length > 12 ? ' data-tipf="Folio ' + esc(g.f) + '"' : ''}>${g.f ? esc(g.f) : '—'}</span></td>`;
+      const plTd = g => `<td class="${alt}" style="width:136px;min-width:136px;max-width:136px" data-tipf="${esc(tc)}">${g.its.map(chip).join(' ')}</td>`;
+      return gr.map((g, j) => '<tr' + (j ? '' : ` data-row="${i}"`) + '>' + (j ? '' : ini) + (S.verFolio ? folTd(g) : '') + plTd(g) + (j ? '' : fin) + '</tr>').join('');
     }).join('');
     const op = (k, tx, n) => `<label style="margin-right:12px"><input type="radio" name="flt" data-filtro="${k}" ${S.filtro === k ? 'checked' : ''}> ${tx} (${n})</label>`;
     return roBanner() + barraOficio(true) + frame('Avance', `<div class="row"><span><b>${c.ok} de ${c.n}</b> bloques confirmados</span><div class="pb"><i style="width:${pct}%"></i></div><span class="sp"></span>${btn('Volver a sugerir', 'data-a="re"' + dis)}${btn('Confirmar sugeridas (' + c.sug + ')', 'data-a="conf-sug"' + (c.sug && t ? '' : ' disabled'))}</div><div style="margin-top:6px">Mostrar: ${op('todas', 'Todos', c.n)}${op('sin', 'Sin asignar', c.sin)}${op('sug', 'Sugeridos', c.sug)}${op('ok', 'Confirmados', c.ok)}</div>`) +
-      frame('Bloques del oficio', `<div class="row" style="margin-bottom:6px"><span><b>${S.selB.size}</b> seleccionado(s)</span><select id="bulkCat" ${dis}>${optCat('').replace('<option value="custom">✎ Texto propio…</option>', '')}</select>${btn('Asignar a seleccionados', 'data-a="bulk"' + (S.selB.size && t ? '' : ' disabled'), 'peq')}<span class="sp"></span>${t ? btn('Editar el catálogo de análisis…', 'data-a="ir-cat"', 'peq') : ''}</div><div class="lv" style="height:520px"><table><tr><th></th><th>Fecha</th><th>Lugar</th><th>Tipo</th><th>Texto del oficio</th><th>Placas</th><th>Análisis técnico</th><th>Estado</th></tr>${filas}</table></div>`) +
+      frame('Bloques del oficio', `<div class="row" style="margin-bottom:6px"><span><b>${S.selB.size}</b> seleccionado(s)</span><select id="bulkCat" ${dis}>${optCat('').replace('<option value="custom">✎ Texto propio…</option>', '')}</select>${btn('Asignar a seleccionados', 'data-a="bulk"' + (S.selB.size && t ? '' : ' disabled'), 'peq')}<label style="margin-left:10px;white-space:nowrap" data-tipf="Muestra u oculta la columna de folio (siempre parte desmarcada)"><input type="checkbox" data-verfolio ${S.verFolio ? 'checked' : ''}> Mostrar folio</label><span class="sp"></span>${t ? btn('Editar el catálogo de análisis…', 'data-a="ir-cat"', 'peq') : ''}</div><div class="lv" style="height:520px"><table><tr><th></th><th>Fecha</th><th>Lugar</th><th>Tipo</th><th>Texto del oficio</th>${S.verFolio ? '<th>Folio N°</th>' : ''}<th>Placas</th><th>Análisis técnico</th><th>Estado</th></tr>${filas}</table></div>`) +
       `<div class="pie" style="display:flex;gap:8px;align-items:center;margin-top:10px"><button class="vb" data-go="lectura">← Lectura del oficio</button><span class="sp"></span><span style="color:#900">${c.ok === c.n ? '' : 'Faltan ' + (c.n - c.ok) + ' bloque(s) por confirmar'}</span><button class="vb def" data-go="memo" ${c.ok === c.n ? '' : 'disabled'}>Continuar → Memo</button></div>`;
   }
   // un solo cambio no guarda (solo marca «sin guardar»); las acciones masivas sí guardan
