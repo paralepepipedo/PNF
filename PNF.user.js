@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PNF · Respuesta a oficios de Fiscalización
 // @namespace    pnf.seremitt
-// @version      0.3.24
+// @version      0.3.25
 // @description  Responde los oficios de Fiscalización desde el SGD: lee el oficio, arma el análisis técnico y el memo, y lo envía. Ventana, configuración, respaldo, usuarios, alertas, lectura de oficios, análisis técnico, memo, Excel y aportes de supervisores.
 // @match        https://sgd.mtt.cl/*
 // @noframes
@@ -24,7 +24,7 @@
 
 (function () {
   'use strict';
-  const VERSION = '0.3.24';
+  const VERSION = '0.3.25';
   const URL_ACTUALIZAR = 'https://raw.githubusercontent.com/paralepepipedo/PNF/main/PNF.user.js'; // debe coincidir con @updateURL
   const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   if (window.top !== window.self || document.getElementById('pnf-host')) return;
@@ -507,9 +507,10 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
     if ((c === 'lec' || c === 'usr')) cu = bloq ? gate() : `<div class="row" style="margin-bottom:6px"><span class="rolchip">🔓 Sección desbloqueada</span>${btn('Bloquear ahora', 'data-a="bloq"', 'peq')}</div>` + cu;
     return `<div class="mtabs" style="margin-bottom:-1px">${tabs}</div><div class="mpage" style="min-height:0;padding:10px">${cu}</div>`;
   }
+  const reglaDe = x => x.porDefecto ? 'inf' : x.dejar ? 'dejar' : 'sug';
   function cfgCat() {
-    return `<div class="note">Cada fila es un análisis posible. Las <b>frases clave</b> (separadas por coma) hacen que se sugiera solo cuando aparecen en el texto del oficio. Se evalúan de arriba hacia abajo; «por defecto» aplica si nada coincide. Se puede agregar, cambiar, ordenar o quitar cualquiera.</div>
-    <div class="lv" style="max-height:340px"><table><tr><th>Texto del análisis (sale en el memo)</th><th>Frases clave</th><th>Regla</th><th>Orden</th></tr>${D.catalogo.map((x, i) => `<tr><td style="width:46%"><textarea data-cat-t="${i}">${esc(x.t)}</textarea>${x.dejar ? '<div style="font-size:11px">sin texto: la fila queda «Sin asignar» para que la decidas tú</div>' : ''}</td><td><input type="text" data-cat-k="${i}" value="${esc(x.kw.join(', '))}" style="width:100%"></td><td>${x.porDefecto ? 'por defecto (infracciones)' : x.dejar ? 'dejar sin asignar' : 'sugerir'}</td><td style="white-space:nowrap">${btn('↑', 'data-a="cat-up" data-i="' + i + '"', 'peq')} ${btn('✕', 'data-a="cat-del" data-i="' + i + '"', 'peq')}</td></tr>`).join('')}</table></div>
+    return `<div class="note">Cada fila es un análisis posible. Las <b>frases clave</b> (separadas por coma) hacen que se sugiera solo cuando aparecen en el texto del oficio. Se evalúan de arriba hacia abajo. La columna <b>Regla</b> dice qué hace cada fila (lo explica debajo de cada una). Se puede agregar, cambiar, ordenar o quitar cualquiera.</div>
+    <div class="lv" style="max-height:340px"><table><tr><th>Texto del análisis (sale en el memo)</th><th>Frases clave</th><th>Regla</th><th>Orden</th></tr>${D.catalogo.map((x, i) => `<tr><td style="width:46%"><textarea data-cat-t="${i}">${esc(x.t)}</textarea>${x.dejar ? '<div style="font-size:11px">sin texto: la fila queda «Sin asignar» para que la decidas tú</div>' : ''}</td><td><input type="text" data-cat-k="${i}" value="${esc(x.kw.join(', '))}" style="width:100%"></td><td style="min-width:190px"><select data-cat-r="${i}">${[['sug', 'Sugerir'], ['dejar', 'Dejar sin asignar'], ['inf', 'Por defecto (infracciones)']].map(o => `<option value="${o[0]}" ${reglaDe(x) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select><div style="font-size:11px;margin-top:2px">${{ sug: 'Se sugiere cuando el oficio dice alguna frase clave.', dejar: 'Si aparece una frase clave NO se sugiere nada: queda «Sin asignar» para que decidas tú.', inf: 'Se sugiere si no coincide ninguna frase y el bloque es una INFRACCIÓN. Solo puede haber una fila así.' }[reglaDe(x)]}</div></td><td style="white-space:nowrap">${btn('↑', 'data-a="cat-up" data-i="' + i + '"', 'peq')} ${btn('✕', 'data-a="cat-del" data-i="' + i + '"', 'peq')}</td></tr>`).join('')}</table></div>
     <div class="row" style="margin-top:8px">${btn('+ Agregar análisis', 'data-a="cat-add"', 'def')}<span style="font-size:11.5px">Los cambios se guardan solos.</span></div>`;
   }
   const upInp = (k, v) => `<input type="text" data-cf="${k}" data-up="1" value="${esc(v)}" style="width:100%;text-transform:uppercase">`;
@@ -720,7 +721,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
       case 'resp-ahora': await guardar('respaldo manual', true); break;
       case 'pin': if (pinOk(valor('#pinIn'))) { S.pinOk = true; guardaPIN(); toast('Sección desbloqueada'); render(); } else { $('#pinMsg').textContent = 'PIN incorrecto.'; $('#pinIn').value = ''; $('#pinIn').focus(); } break;
       case 'bloq': S.pinOk = false; toast('Sección bloqueada'); render(); break;
-      case 'cat-add': D.catalogo.splice(D.catalogo.length - 1, 0, { id: 'n' + Date.now(), t: 'Nuevo análisis…', kw: [] }); await guardaCfg('catálogo de análisis'); break;
+      case 'cat-add': { D.catalogo.push({ id: 'n' + Date.now(), t: 'Nuevo análisis…', kw: [] }); await guardaCfg('catálogo de análisis'); const ta = $('[data-cat-t="' + (D.catalogo.length - 1) + '"]'); if (ta) { const lv = ta.closest('.lv'); if (lv) lv.scrollTop = lv.scrollHeight; ta.focus(); ta.select(); } break; }
       case 'cat-up': if (i > 0) { [D.catalogo[i - 1], D.catalogo[i]] = [D.catalogo[i], D.catalogo[i - 1]]; await guardaCfg('catálogo de análisis'); } break;
       case 'cat-del': if (D.catalogo.length > 1) { D.catalogo.splice(i, 1); await guardaCfg('catálogo de análisis'); } break;
       case 'per-add': { const u = valor('#nuPU').toLowerCase(), n = valor('#nuPN').toUpperCase(), c = valor('#nuPC').toUpperCase(); if (!/^[a-z][a-z0-9._-]{2,}$/.test(u) || !n) { aviso('Escribe el usuario del SGD y el nombre completo.'); break; } if (D.cfg.personas.some(p => p.usuario === u)) { aviso('Ese usuario ya está en la lista.'); break; } D.cfg.personas.push({ usuario: u, nombre: n, cargo: c, ok: false }); await guardaCfg('personas del SGD'); break; }
@@ -743,6 +744,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
     else if (t.id === 'tbTam') { S.tb.tam = t.value; S.tb.pag = 1; renderTabla(); }
     else if (d.cf !== undefined) { setPath(D.cfg, d.cf, t.type === 'checkbox' ? t.checked : t.value); await guardaCfg(); }
     else if (d.catT !== undefined) { D.catalogo[+d.catT].t = t.value; await guardaCfg('catálogo de análisis'); }
+    else if (d.catR !== undefined) { const x = D.catalogo[+d.catR], v = t.value; delete x.dejar; delete x.porDefecto; if (v === 'dejar') x.dejar = true; if (v === 'inf') { D.catalogo.forEach(y => { if (y !== x && y.porDefecto === 'INF') delete y.porDefecto; }); x.porDefecto = 'INF'; } await guardaCfg('catálogo de análisis'); }
     else if (d.catK !== undefined) { D.catalogo[+d.catK].kw = t.value.split(',').map(s => s.trim()).filter(Boolean); await guardaCfg('catálogo de análisis'); }
     else if (d.lc) { L[d.lc] = t.value; saveL(); toast('Guardado en este computador'); }
     else if (d.ua) { R[d.ua] = Math.max(1, +t.value || 1); await guardarRoles('alertas'); iniciarSondeo(); }
