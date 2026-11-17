@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PNF · Respuesta a oficios de Fiscalización
 // @namespace    pnf.seremitt
-// @version      0.3.25
+// @version      0.4.0
 // @description  Responde los oficios de Fiscalización desde el SGD: lee el oficio, arma el análisis técnico y el memo, y lo envía. Ventana, configuración, respaldo, usuarios, alertas, lectura de oficios, análisis técnico, memo, Excel y aportes de supervisores.
 // @match        https://sgd.mtt.cl/*
 // @noframes
@@ -24,7 +24,7 @@
 
 (function () {
   'use strict';
-  const VERSION = '0.3.25';
+  const VERSION = '0.4.0';
   const URL_ACTUALIZAR = 'https://raw.githubusercontent.com/paralepepipedo/PNF/main/PNF.user.js'; // debe coincidir con @updateURL
   const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   if (window.top !== window.self || document.getElementById('pnf-host')) return;
@@ -369,6 +369,23 @@ label.lb { display:block; margin:6px 0 2px; }
 .lv td { padding:3px 7px; border:1px solid var(--grid); vertical-align:top; } .lv tr:nth-child(even) td { background:var(--band); }
 .pinbox { max-width:440px; margin:26px auto; text-align:center; padding:16px; border:1px solid var(--fb); background:var(--note); border-radius:3px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
 .vacio { text-align:center; padding:26px 10px; color:#555; }
+.xseg { display:inline-flex; border:1px solid var(--bhi); border-radius:4px; overflow:hidden; vertical-align:middle; }
+.xseg button { border:0; border-right:1px solid var(--bhi); padding:3px 12px; background:var(--btnbg); cursor:pointer; font:inherit; }
+.xseg button:last-child { border-right:0; } .xseg button.on { background:var(--sel); color:#fff; font-weight:bold; }
+tr.xfila { cursor:pointer; }
+.xhit td { background:#fff3a8 !important; }
+.xhl { background:#ffe14d; font-weight:bold; padding:0 2px; border-radius:2px; }
+.xchip { display:inline-flex; align-items:center; gap:5px; background:#dce9fb; border:1px solid #7b9fd0; border-radius:10px; padding:0 4px 0 8px; }
+.xchip .xchipx { cursor:pointer; background:#fff; border-radius:50%; width:16px; height:16px; line-height:13px; text-align:center; font-size:10px; border:1px solid #7b9fd0; padding:0; margin-left:2px; } .xchip .xchipx:hover { background:#f59a8a; }
+.xband th { background:var(--thbg); border:1px solid var(--bhi); text-align:center; font-weight:bold; padding:3px 5px; color:#222; font-size:11px; }
+.xok { color:#2e7d32; font-weight:bold; } .xpen { color:#999; } .xnum { text-align:right; } .xsmall { font-size:11px; color:#555; }
+.xcards { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+.xcard { border:1px solid var(--fb); border-radius:5px; padding:7px 8px; background:#fff; cursor:pointer; }
+.xcard.on { border-color:var(--acc); box-shadow:inset 0 0 0 2px var(--acc); background:#eef4ff; }
+.xcard .xct { font-weight:bold; font-size:13px; } .xcard .xcn { color:#555; font-size:11px; margin:1px 0 6px; }
+.xmini { border-collapse:collapse; width:100%; font-size:9.5px; background:#fff; margin-bottom:3px; }
+.xmini th { background:#d9d9d9; border:1px solid #aaa; font-weight:normal; padding:0 3px; text-align:left; } .xmini td { border:1px solid #ccc; padding:0 3px; white-space:nowrap; }
+.xmini .rep td:first-child { color:#2f64b5; } .xhoja { display:inline-block; background:#e8f0e3; border:1px solid #7fb77a; border-radius:3px 3px 0 0; padding:0 5px; font-size:9px; margin-top:2px; }
 .pdfi { display:inline-block; position:relative; width:26px; height:30px; background:#d32f2f; border-radius:3px; color:#fff; font:800 9px Arial,sans-serif; text-align:center; line-height:36px; cursor:pointer; vertical-align:middle; margin:0 6px; box-shadow:0 1px 3px rgba(0,0,0,.4); }
 .pdfi::before { content:''; position:absolute; top:0; right:0; width:9px; height:9px; background:linear-gradient(225deg,#f7f6f3 50%,#9c1c1c 50%); border-top-right-radius:3px; }
 .pdfi:hover { background:#e53935; }
@@ -443,6 +460,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
   <div id="tip"></div>
   <div id="card"><div class="h"><span id="cardT"></span></div><div class="b" id="cardB"></div></div><input type="file" id="fileIn" accept="application/pdf,.pdf" multiple style="display:none"><div id="fab" title="Abrir PNF · arrastra para mover"><b>PNF</b><small>ggb</small><span class="bdg" id="fabN">0</span><span class="bdg bdg2" id="fabP">0</span><span class="bdg bdg3" id="fabD">⚠</span></div>
   <div class="ov" id="pdfOv"><div class="mb" style="width:900px;max-width:96vw"><div class="tbar" style="display:flex;justify-content:space-between;align-items:center"><span id="pdfT">Vista previa</span><span class="cap x" data-a="pdf-cerrar" title="Cerrar (Esc)">✕</span></div><div style="padding:8px 4px 4px"><div class="visor pnfmemo" id="pdfBody" style="max-height:72vh"></div></div><div class="bt" style="padding:6px 0 10px"><button class="vb def" data-a="pdf-cerrar">Cerrar</button></div></div></div>
+  <div class="ov" id="xlOv"><div class="mb" style="width:1060px;max-width:97vw"><div class="tbar" style="display:flex;justify-content:space-between;align-items:center"><span id="xlT">Detalle</span><span class="cap x" data-a="xl-cerrar" data-tipf="Cerrar (Esc)">✕</span></div><div class="bd" id="xlB" style="padding:8px 14px 4px;max-height:none"></div><div class="bt" style="padding:6px 0 10px"><button class="vb def" data-a="xl-cerrar">Cerrar</button></div></div></div>
   <div class="ov" id="ov"><div class="mb" id="mb"><div class="tbar" id="mbT">PNF</div><div class="bd" id="mbB"></div><div class="err" id="mbE"></div><div class="bt" id="mbBt"></div></div></div>
   </div>`;
   const $ = s => root.querySelector(s);
@@ -451,7 +469,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
   // vista previa del memo (la misma hoja que se adjunta como PDF)
   function abrirPdf() { const ex = exAct(), o = (datos().oficios || {})[ex]; if (!o) return; $('#pdfT').textContent = 'Vista previa · ' + nombreMemo(o) + '.pdf'; $('#pdfBody').innerHTML = `<style>${MEMO_CSS}</style>` + hojaMemo(ex, false); $('#pdfBody').scrollTop = 0; $('#pdfOv').classList.add('on'); }
   function cerrarPdf() { $('#pdfOv').classList.remove('on'); }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#pdfOv').classList.contains('on')) { e.stopPropagation(); cerrarPdf(); } }, true);
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if ($('#xlOv').classList.contains('on')) { e.stopPropagation(); cerrarDetXl(); } else if ($('#pdfOv').classList.contains('on')) { e.stopPropagation(); cerrarPdf(); } }, true);
   // aviso con movimiento mientras PNF trabaja: tapa la ventana (menos la barra de título) para que nadie haga clic en otro lugar
   let busyIv = null;
   function ocupado(titulo, detalle) {
@@ -664,7 +682,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
   const guardaCfg = motivo => guardar(motivo || 'configuración');
 
   root.addEventListener('click', async e => {
-    const el = e.target.closest('[data-a],[data-go],[data-ct],[data-cbpick],[data-cbtog],[data-ord],[data-pg],[data-fila]'); if (!el) { if (!e.target.closest('.cb')) { cbCerrar(); $$('.cbIn').forEach(i => { const o = entradaPend(); i.value = i.dataset.cbin === 'selXl' ? S.xlExp : (S.vista === 'lectura' && o ? o.exp : exAct()); }); } return; } const d = el.dataset;
+    const el = e.target.closest('[data-a],[data-go],[data-ct],[data-cbpick],[data-cbtog],[data-ord],[data-pg],[data-fila]'); if (!el) { if (!e.target.closest('.cb')) { cbCerrar(); $$('.cbIn').forEach(i => { const o = entradaPend(); i.value = (S.vista === 'lectura' && o ? o.exp : exAct()); }); } return; } const d = el.dataset;
     if (d.cbpick !== undefined) { cbPick(d.cbpick, d.v); return; }
     if (d.cbtog) { const l = $('#cbl-' + d.cbtog); if (l.classList.contains('on')) cbCerrar(); else { cbCerrar(); cbAbrir(d.cbtog, '', false); } return; }
     if (d.ord) { if (S.tb.ord.c === d.ord) S.tb.ord.d = -S.tb.ord.d; else S.tb.ord = { c: d.ord, d: 1 }; renderTabla(); return; }
@@ -700,7 +718,20 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
       case 'para-memo': await cambiarPara(); break;
       case 'para-quitar': { const o = ofAct(); if (o) { delete o.paraMemo; o.memoOk = false; await guardar('PARA vuelve al de Configuración'); render(); } break; }
       case 'err-memo': await reportarErrorMemo(); break;
-      case 'xls': await exportarExcel(); break;
+      case 'xls': cbCerrar(); await abrirExportarXl(); break;
+      case 'xl-vista': XL.vista = d.v; XL.pag = 1; render(); break;
+      case 'xl-limpiar': XL.q = ''; XL.sel = ''; XL.pag = 1; render(); break;
+      case 'xl-quitasel': XL.sel = ''; XL.pag = 1; pintaXl(); break;
+      case 'xl-pg': if (d.k === 'det') { XL.det.pag = +d.p; pintaDetXl(); } else { XL.pag = +d.p; pintaXl(); } break;
+      case 'xl-fila': abrirDetalleXl(d.id); break;
+      case 'xl-tog': { const l = $('#xlCbl'); if (l.classList.contains('on')) l.classList.remove('on'); else xlLista(); break; }
+      case 'xl-pick': cbCerrar(); if (d.v !== '__q') { XL.sel = d.v; XL.q = ''; XL.pag = 1; render(); } break;
+      case 'xl-dclr': XL.det.q = ''; XL.det.pag = 1; $('#xlDq').value = ''; pintaDetXl(); $('#xlDq').focus(); break;
+      case 'xl-copiar': await copiarDetXl(); break;
+      case 'xl-descargar': await exportarDetXl(); break;
+      case 'xl-cerrar': cerrarDetXl(); break;
+      case 'xl-alc': XL.alc = d.v; $('#mbB').innerHTML = cuerpoExportarXl(); break;
+      case 'xl-fmt': XL.fmt = d.v; $('#mbB').innerHTML = cuerpoExportarXl(); break;
       case 'examinar': $('#fileIn').click(); break;
       case 'lec-ir': S.lec = { pend: d.id }; S.vista = 'lectura'; render(); break;
       case 'lec-agregar': await agregarPend(d.id); break;
@@ -736,6 +767,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
   });
   root.addEventListener('change', async e => {
     const t = e.target, d = t.dataset;
+    if (d.xtam) { xlTam(d.xtam, +t.value); return; }
     if (cambioAnalisis(t, d)) { /* listo */ }
     else if (d.selb !== undefined) { t.checked ? S.selB.add(+d.selb) : S.selB.delete(+d.selb); render(); }
     else if (d.filtro) { S.filtro = d.filtro; render(); }
@@ -753,6 +785,7 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
   });
   root.addEventListener('input', e => {
     const t = e.target, d = t.dataset || {};
+    if (t.id === 'xlQ') { xlEntrada(t.value); return; } if (t.id === 'xlDq') { XL.det.q = t.value; XL.det.pag = 1; pintaDetXl(); return; }
     if (d.up) { const a = t.selectionStart; t.value = t.value.toUpperCase(); try { t.setSelectionRange(a, a); } catch (x) { /* ok */ } }
     else if (d.flt && t.tagName === 'INPUT') { S.tb.f[d.flt] = t.value; S.tb.pag = 1; renderTabla(); }
     else if (d.cbin) cbAbrir(d.cbin, t.value, true);
@@ -770,11 +803,11 @@ table.t tr.fl th { background:#f4f3ef; padding:2px 3px; border-color:#ddd #bbb #
   });
   // globito instantáneo: solo aparece si el texto está cortado con «…» (el del navegador tarda ~1 s)
   const moverTip = e => { const tp = $('#tip'), w = tp.offsetWidth, h = tp.offsetHeight; let x = e.clientX + 14, y = e.clientY + 16; if (x + w > innerWidth - 8) x = innerWidth - w - 8; if (y + h > innerHeight - 8) y = e.clientY - h - 10; tp.style.left = Math.max(4, x) + 'px'; tp.style.top = Math.max(4, y) + 'px'; };
-  root.addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('[data-tip]'); if (!t || (t.scrollHeight <= t.clientHeight + 1 && t.scrollWidth <= t.clientWidth + 1)) return; const tp = $('#tip'); tp.textContent = t.dataset.tip; tp.style.display = 'block'; moverTip(e); });
+  root.addEventListener('mouseover', e => { const f = e.target.closest && e.target.closest('[data-tipf]'), t = e.target.closest && e.target.closest('[data-tip]'); const el = f && f.dataset.tipf ? f : (t && !(t.scrollHeight <= t.clientHeight + 1 && t.scrollWidth <= t.clientWidth + 1) ? t : null); if (!el) return; const tp = $('#tip'); tp.textContent = el.dataset.tipf || el.dataset.tip; tp.style.display = 'block'; moverTip(e); });
   root.addEventListener('mousemove', e => { if ($('#tip').style.display === 'block') moverTip(e); });
-  root.addEventListener('mouseout', e => { if (e.target.closest && e.target.closest('[data-tip]')) $('#tip').style.display = 'none'; });
+  root.addEventListener('mouseout', e => { if (e.target.closest && e.target.closest('[data-tip],[data-tipf]')) $('#tip').style.display = 'none'; });
   root.addEventListener('mouseover', e => { const it = e.target.closest && e.target.closest('.cbi'); if (!it) return; it.parentNode.querySelectorAll('.cbi.hl').forEach(x => { if (x !== it) x.classList.remove('hl'); }); it.classList.add('hl'); });   // el mouse mueve la marca: nunca hay dos filas marcadas
-  root.addEventListener('focusin', e => { const t = e.target; if (t.classList && t.classList.contains('cbIn')) { t.select(); cbCerrar(); cbAbrir(t.dataset.cbin, '', false); } });
+  root.addEventListener('focusin', e => { const t = e.target; if (t.id === 'xlQ') { xlLista(); return; } if (t.classList && t.classList.contains('cbIn')) { t.select(); cbCerrar(); cbAbrir(t.dataset.cbin, '', false); } });
   root.addEventListener('dblclick', e => { const tr = e.target.closest && e.target.closest('[data-fila]'); if (tr) { S.sel = tr.dataset.fila; S.exp = S.sel; S.lec = { exp: S.sel }; S.vista = 'lectura'; render(); } });
   root.addEventListener('dragover', e => { const z = e.target.closest && e.target.closest('#drop'); if (z) { e.preventDefault(); z.classList.add('sobre'); } });
   root.addEventListener('dragleave', e => { const z = e.target.closest && e.target.closest('#drop'); if (z) z.classList.remove('sobre'); });
@@ -1081,18 +1114,18 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
   }
 
   /* — selector buscable de oficios (sirve con 500 expedientes) — */
-  function cbHtml(id, val) { return `<span class="cb" data-cb="${id}"><input type="text" class="cbIn" data-cbin="${id}" value="${esc(val)}" placeholder="${id === 'selXl' ? 'Todos los expedientes (escribe para filtrar)' : 'Escribe el expediente, el N° de oficio o parte del asunto…'}" autocomplete="off" style="width:310px"><button class="vb peq" data-cbtog="${id}" title="Mostrar la lista">▾</button><div class="cbList" id="cbl-${id}"></div></span>`; }
+  function cbHtml(id, val) { return `<span class="cb" data-cb="${id}"><input type="text" class="cbIn" data-cbin="${id}" value="${esc(val)}" placeholder="Escribe el expediente, el N° de oficio o parte del asunto…" autocomplete="off" style="width:310px"><button class="vb peq" data-cbtog="${id}" title="Mostrar la lista">▾</button><div class="cbList" id="cbl-${id}"></div></span>`; }
   function cbAbrir(id, texto, buscar) {
     const q = buscar ? texto.trim().toLowerCase() : '', ofs = datos().oficios || {}, ks = Object.keys(ofs), MAX = 8, rk = e => ofs[e].sgd === 'Respondido' ? 1 : 0;
     const Lx = (q ? ks.filter(e => (e + ' ' + ofs[e].numero + ' ' + ofs[e].mat + ' ' + ofs[e].para + ' ' + tdoc(ofs[e])).toLowerCase().includes(q)) : ks.filter(e => ofs[e].sgd !== 'Respondido')).sort((a, b) => rk(a) - rk(b) || diasDe(ofs[b]) - diasDe(ofs[a]));
-    let h = (id === 'selXl' && !q ? '<div class="cbi" data-cbpick="selXl" data-v="">★ Todos los expedientes</div>' : '') + Lx.slice(0, MAX).map(e => { const o = ofs[e]; return `<div class="cbi" data-cbpick="${id}" data-v="${esc(e)}"><b class="mono">${esc(e)}</b> · ${esc(tdoc(o))} ${esc(o.numero.split('/')[0])} <span class="estado ${claseEstado(o.sgd)}">${esc(o.sgd)}</span><div class="cbs">${esc(o.mat)} — ${esc(o.para)}</div></div>`; }).join('');
+    let h = Lx.slice(0, MAX).map(e => { const o = ofs[e]; return `<div class="cbi" data-cbpick="${id}" data-v="${esc(e)}"><b class="mono">${esc(e)}</b> · ${esc(tdoc(o))} ${esc(o.numero.split('/')[0])} <span class="estado ${claseEstado(o.sgd)}">${esc(o.sgd)}</span><div class="cbs">${esc(o.mat)} — ${esc(o.para)}</div></div>`; }).join('');
     h += Lx.length ? `<div class="cbf">${Lx.length > MAX ? 'Mostrando ' + MAX + ' de ' + Lx.length + (q ? ' coincidencias' : ' pendientes') + '. Sigue escribiendo para acotar.' : Lx.length + (q ? ' coincidencia(s)' : ' pendiente(s)')}${q ? '' : ' · escribe para buscar también entre los respondidos (' + ks.length + ' en total)'} · ↑↓ y Enter</div>` : '<div class="cbf">Sin coincidencias.</div>';
     const box = $('#cbl-' + id); box.innerHTML = h; box.classList.add('on');
     // una sola fila marcada: al abrir la lista, la del oficio que está abierto (si aparece); si estás escribiendo para buscar, la primera coincidencia
     const items = [...box.querySelectorAll('.cbi')], cur = buscar ? null : (($('.cbIn[data-cbin="' + id + '"]') || {}).value || ''), marca = (cur !== null && items.find(x => x.dataset.v === cur)) || items[0]; if (marca) marca.classList.add('hl');
   }
   const cbCerrar = () => $$('.cbList.on').forEach(x => x.classList.remove('on'));
-  function cbPick(id, v) { cbCerrar(); if (id === 'selXl') { S.xlExp = v; render(); return; } if (S.dirty) guardar('al cambiar de oficio'); S.sel = v; S.lec = { exp: v }; S.exp = v; S.selB.clear(); render(); }
+  function cbPick(id, v) { cbCerrar(); if (S.dirty) guardar('al cambiar de oficio'); S.sel = v; S.lec = { exp: v }; S.exp = v; S.selB.clear(); render(); }
   /* — tabla de oficios: filtros, orden y páginas — */
   function filasOf() {
     const ofs = datos().oficios || {}, f = S.tb.f, q = (a, b) => !b || String(a).toLowerCase().includes(b.toLowerCase());
@@ -1181,7 +1214,6 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
   }
   const textoAn = b => b.cat === 'custom' ? b.custom : ((catalogo().find(c => c.id === b.cat) || {}).t || '');
   const conteo = o => { const rs = o.bloques || []; return { n: rs.length, ok: rs.filter(r => r.st === 'ok').length, sug: rs.filter(r => r.st === 'sug').length, sin: rs.filter(r => r.st === 'sin').length }; };
-  const nPlacas = o => (o.bloques || []).reduce((a, b) => a + b.items.filter(i => i.p).length, 0);
   S.filtro = 'todas'; S.selB = new Set(); S.foco = null;
 
   function barraOficio(soloGuardado) {
@@ -1427,28 +1459,190 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
       `<div class="pie" style="display:flex;gap:8px;align-items:center;margin-top:10px"><button class="vb" data-go="analisis">← Análisis técnico</button><span class="sp"></span><span style="color:#900">${lista ? '' : 'Confirma todos los bloques para poder enviar'}</span><button class="vb def" data-go="sgd" ${lista ? '' : 'disabled'}>Enviar al SGD →</button></div>`;
   }
 
-  /* ═══════════════ 13 · Excel acumulado (etapa 4) ═══════════════ */
-  S.xlExp = '';
-  function filasExcel(ex) {
-    const ofs = datos().oficios || {}, out = [];
-    Object.keys(ofs).filter(e => !ex || e === ex).forEach(e => { const o = ofs[e]; o.bloques.forEach(b => b.items.forEach(i => { if (!i.p) return; out.push({ exp: e, numero: tdoc(o) + ' ' + o.numero, fechaDoc: o.fechaDoc, fecha: b.fecha, lugar: b.lugar, hora: i.h, folio: i.f, placa: i.p, tipo: b.tipo, texto: b.texto, analisis: textoAn(b), estado: b.st === 'ok' ? 'confirmado' : 'pendiente' }); })); });
-    return out;
+  /* ═══════════════ 13 · Excel acumulado: por expediente / por placa, buscador único, detalle en ventana y exportar ═══════════════ */
+  const XL = S.xl = { vista: 'exp', q: '', sel: '', tam: 50, pag: 1, det: { exp: '', q: '', pag: 1, tam: 50 }, fmt: 'det', alc: 'vista', idx: null };
+  const ACENTOS_XL = { 'Á': 'A', 'À': 'A', 'Â': 'A', 'Ä': 'A', 'É': 'E', 'È': 'E', 'Ê': 'E', 'Ë': 'E', 'Í': 'I', 'Ì': 'I', 'Î': 'I', 'Ï': 'I', 'Ó': 'O', 'Ò': 'O', 'Ô': 'O', 'Ö': 'O', 'Ú': 'U', 'Ù': 'U', 'Û': 'U', 'Ü': 'U', 'Ñ': 'N', 'Ç': 'C' };
+  const nzx = s => String(s == null ? '' : s).toUpperCase().replace(/[^\x00-\x7f]/g, c => ACENTOS_XL[c] || '').replace(/[^A-Z0-9]/g, '');   // sin normalize('NFD') (muy lento con miles de filas)
+  const n0 = n => Number(n).toLocaleString('es-CL');
+  const hayXl = r => r._h || (r._h = nzx(r.placa + r.lugar + r.texto + r.analisis + r.folio));   // búsqueda general: placa, lugar, infracción, análisis y folio
+  const hayDet = r => nzx(r.placa + r.texto + r.analisis + r.lugar);                                  // buscador de la ventana de detalle
+  const COLS_XL = ['Expediente', 'Documento N°', 'Fecha documento', 'Fecha', 'Lugar', 'Hora', 'Folio', 'Placa', 'Tipo', 'Texto del oficio', 'Análisis técnico', 'Estado análisis'];
+  const filaXl = (x, r) => [x.id, x.doc, x.fechaDoc, r.fecha, r.lugar, r.hora, r.folio, r.placa, r.tipo, r.texto, r.analisis, r.estado];
+  const hayFiltroXl = () => !!(XL.q.trim() || XL.sel);
+  const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  // un registro por expediente (con sus filas de placas), en el mismo orden inicial que «Oficios cargados»
+  function indiceXl() {
+    const ofs = datos().oficios || {}, rank = o => o.sgd === 'Devuelto' ? 0 : o.sgd === 'Por despachar' ? 1 : o.sgd === 'Pendiente' ? 2 : 3;
+    return Object.keys(ofs).map(e => {
+      const o = ofs[e], rows = [], c = conteo(o);
+      (o.bloques || []).forEach(b => (b.items || []).forEach(i => { if (!i.p) return; rows.push({ fecha: b.fecha, lugar: b.lugar, hora: i.h, folio: i.f, placa: i.p, tipo: b.tipo, texto: b.texto, analisis: textoAn(b), estado: b.st === 'ok' ? 'confirmado' : 'pendiente' }); }));
+      return { id: e, o, doc: tdoc(o) + ' ' + (o.numero || ''), fechaDoc: o.fechaDoc || '', llegada: o.llegada || o.fechaDoc || '', sgd: o.sgd, placas: rows.length, bok: c.ok, nb: c.n, memo: !!o.memoOk, por: o.cargadoPor || '', rows, _h: nzx(e + ' ' + tdoc(o) + ' ' + (o.numero || '')) };
+    }).sort((a, b) => rank(a.o) - rank(b.o) || (rank(a.o) === 3 ? +dmy(b.o.fechaDoc) - +dmy(a.o.fechaDoc) : diasDe(b.o) - diasDe(a.o)));
   }
+  // aplica el filtro de expediente y la búsqueda; si la búsqueda coincide con el expediente u oficio entran todas sus placas, si no solo las que coinciden
+  // texto de todo el expediente para descartar rápido los que no coinciden (lugar, infracción y análisis una sola vez por bloque)
+  function haXl(x) {
+    if (x._ha === undefined) { let t = '', pl = null, pt = null, pa = null;
+      for (let k = 0; k < x.rows.length; k++) { const r = x.rows[k]; t += r.placa + ' ' + r.folio + ' '; if (r.lugar !== pl || r.texto !== pt || r.analisis !== pa) { t += r.lugar + ' ' + r.texto + ' ' + r.analisis + ' '; pl = r.lugar; pt = r.texto; pa = r.analisis; } }
+      x._ha = nzx(t); }
+    return x._ha;
+  }
+  // con muchos expedientes, se prepara en segundo plano (trozos de ~12 ms) para que la primera búsqueda no se note
+  function precalcXl() {
+    const I = XL.idx; if (!I) return; let i = 0;
+    const paso = () => { if (XL.idx !== I) return; const t0 = Date.now(); while (i < I.length && Date.now() - t0 < 12) { haXl(I[i]); i++; } if (i < I.length) setTimeout(paso, 0); };
+    setTimeout(paso, 250);
+  }
+  function consultaXl() {
+    // bucles simples (no map/filter/forEach): con la Prototype.js del SGD esos métodos son mucho más lentos y aquí se recorren miles de filas
+    const I = XL.idx || (XL.idx = indiceXl()), nq = nzx(XL.q), lista = []; let nFilas = 0;
+    for (let i = 0; i < I.length; i++) {
+      const x = I[i]; if (XL.sel && x.id !== XL.sel) continue;
+      let todo = false, filas = x.rows;
+      if (nq) {
+        todo = x._h.includes(nq);
+        if (!todo) {
+          if (!haXl(x).includes(nq)) continue;
+          filas = []; for (let k = 0; k < x.rows.length; k++) if (hayXl(x.rows[k]).includes(nq)) filas.push(x.rows[k]);
+          if (!filas.length) continue;
+        }
+      }
+      lista.push({ x, todo, filas, hits: nq && !todo ? filas : [] }); nFilas += filas.length;
+    }
+    return { lista, nExp: lista.length, nFilas, nq };
+  }
+  function pagerXl(total, pag, tam, k) {
+    const pags = Math.max(1, Math.ceil(total / tam)); pag = Math.min(pag, pags);
+    const ini = total ? (pag - 1) * tam + 1 : 0, fin = Math.min(total, pag * tam);
+    const nb = (t, p, dis, on) => `<span class="${dis ? 'dis' : on ? 'on' : ''}"${dis ? '' : ' data-a="xl-pg" data-k="' + k + '" data-p="' + p + '"'}>${t}</span>`;
+    const a = Math.max(1, Math.min(pag - 2, pags - 4)), z = Math.min(pags, a + 4); let h = nb('«', 1, pag === 1) + nb('‹', pag - 1, pag === 1);
+    for (let p = a; p <= z; p++) h += nb(p, p, false, p === pag); h += nb('›', pag + 1, pag === pags) + nb('»', pags, pag === pags);
+    return `<div class="pag"><span>Mostrar</span><select data-xtam="${k}">${[25, 50, 100, 200].map(x => `<option ${x === tam ? 'selected' : ''}>${x}</option>`).join('')}</select><span>por página</span><span class="sp"></span><span>${total ? ini + '–' + fin : 0} de ${n0(total)}</span><div class="n">${h}</div></div>`;
+  }
+  const celdaAnXl = r => `<td data-tip="${esc(r.analisis)}">${r.estado === 'confirmado' ? '<span class="xok">✔</span>' : '<span class="xpen" title="pendiente">○</span>'} ${esc(r.analisis)}</td>`;
+  const marcaXl = (txt, nq) => nq && nzx(txt) && nzx(txt).includes(nq) ? '<span class="xhl">' + esc(txt) + '</span>' : esc(txt);
+
+  function tablaXlExp(q) {
+    const tam = XL.tam, pags = Math.max(1, Math.ceil(q.lista.length / tam)); XL.pag = Math.min(XL.pag, pags);
+    const vis = q.lista.slice((XL.pag - 1) * tam, XL.pag * tam), conCoinc = !!q.nq;
+    const filas = vis.map(z => { const x = z.x, pc = x.nb ? Math.round(x.bok * 100 / x.nb) : 0;
+      const co = conCoinc ? `<td>${z.todo ? '<span class="tag">por expediente u oficio</span>' : '<b>' + z.hits.length + '</b> fila(s): <span class="mono">' + [...new Set(z.hits.map(r => r.placa))].slice(0, 3).join(', ') + '</span>'}</td>` : '';
+      return `<tr class="xfila" data-a="xl-fila" data-id="${esc(x.id)}"><td class="exp">▸ ${esc(x.id)}</td><td data-tip="${esc(x.doc)}">${esc(x.doc)}</td><td>${esc(x.fechaDoc)}</td><td>${esc(x.llegada)}</td><td><span class="estado ${claseEstado(x.sgd)}">${esc(x.sgd)}</span></td><td class="xnum">${n0(x.placas)}</td><td><span class="pbm"><i style="width:${pc}%"></i></span> ${x.bok}/${x.nb}</td><td class="xnum">${x.memo ? 'Sí' : '—'}</td>${co}</tr>`; }).join('');
+    const colg = `<colgroup><col style="width:150px"><col style="width:170px"><col style="width:96px"><col style="width:84px"><col style="width:112px"><col style="width:70px"><col style="width:112px"><col style="width:58px">${conCoinc ? '<col>' : ''}</colgroup>`;
+    return `<div class="tw"><table class="t">${colg}<thead><tr><th>Expediente</th><th>Documento</th><th>Fecha doc.</th><th>Llegó</th><th>Estado en el SGD</th><th class="xnum">Placas</th><th>Análisis</th><th>Memo</th>${conCoinc ? '<th>Coincidencias</th>' : ''}</tr></thead><tbody>${filas || '<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">' + ((datos().oficios && Object.keys(datos().oficios).length) ? 'No hay expedientes que coincidan.' : 'Todavía no hay oficios cargados.') + '</td></tr>'}</tbody></table></div>` + pagerXl(q.lista.length, XL.pag, tam, 'main') +
+      `<div class="xsmall" style="margin-top:6px">Clic en una fila = abre su detalle.</div>`;
+  }
+  function tablaXlPlaca(q) {
+    const planas = []; q.lista.forEach(z => z.filas.forEach(r => planas.push({ x: z.x, r })));
+    const tam = XL.tam, pags = Math.max(1, Math.ceil(planas.length / tam)); XL.pag = Math.min(XL.pag, pags);
+    const vis = planas.slice((XL.pag - 1) * tam, XL.pag * tam);
+    const filas = vis.map(({ x, r }) => `<tr><td class="exp">${esc(x.id)}</td><td data-tip="${esc(x.doc)}">${esc(x.doc)}</td><td>${esc(r.fecha)}</td><td data-tip="${esc(r.lugar)}">${esc(r.lugar)}</td><td>${esc(r.hora)}</td><td>${esc(r.folio)}</td><td class="mono"><b>${marcaXl(r.placa, q.nq)}</b></td><td data-tip="${esc(r.tipo + ': ' + r.texto)}"><span class="tag">${esc(r.tipo)}</span> ${esc(r.texto)}</td>${celdaAnXl(r)}</tr>`).join('');
+    const colg = '<colgroup><col style="width:128px"><col style="width:148px"><col style="width:84px"><col style="width:17%"><col style="width:50px"><col style="width:66px"><col style="width:96px"><col><col style="width:22%"></colgroup>';
+    return `<div class="tw"><table class="t">${colg}<thead><tr><th>Expediente</th><th>Documento N°</th><th>FECHA</th><th>LUGAR</th><th>HORA</th><th>FOLIO N°</th><th>PLACA PATENTE</th><th>INFRACCIÓN / DETALLE / OBSERVACIONES</th><th>ANÁLISIS TÉCNICO</th></tr></thead><tbody>${filas || '<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">No hay filas que coincidan.</td></tr>'}</tbody></table></div>` + pagerXl(planas.length, XL.pag, tam, 'main') +
+      `<div class="xsmall" style="margin-top:6px">Una fila por placa, con las columnas del oficio. Al buscar una placa ves cada fila de cada expediente donde aparece.</div>`;
+  }
+  function partesXl() {
+    const q = consultaXl();
+    return { q, cnt: `<span class="estado">${n0(q.nExp)} expediente(s)</span><span class="estado">${n0(q.nFilas)} fila(s)</span>`,
+      chips: (XL.sel ? `<span class="xchip"><span>Expediente</span><span class="mono"><b>${esc(XL.sel)}</b></span><button class="xchipx" data-a="xl-quitasel" data-tipf="Quitar este filtro y volver a ver todos los expedientes">✕</button></span>` : '') + (hayFiltroXl() ? btn('Quitar filtros', 'data-a="xl-limpiar"', 'peq') : ''),
+      res: XL.vista === 'exp' ? tablaXlExp(q) : tablaXlPlaca(q) };
+  }
+  function pintaXl() { const p = partesXl(), a = $('#xlRes'); if (!a) return; $('#xlCnt').innerHTML = p.cnt; $('#xlChips').innerHTML = p.chips; a.innerHTML = p.res; }
   function vExcel() {
-    const filas = filasExcel(S.xlExp), puede = rolDe(L.usuario) !== 'Espectador' || esTit();
-    const h = filas.slice(0, 2000).map(f => `<tr><td>${esc(f.exp)}</td><td>${esc(f.numero)}</td><td>${esc(f.fechaDoc)}</td><td>${esc(f.fecha)}</td><td class="txt">${esc(f.lugar)}</td><td>${esc(f.hora)}</td><td>${esc(f.folio)}</td><td class="mono">${esc(f.placa)}</td><td>${esc(f.tipo)}</td><td class="txt">${esc(f.texto)}</td><td class="txt">${esc(f.analisis)}</td><td>${f.estado}</td></tr>`).join('');
-    return frame('Planilla acumulada', `<div class="row"><span>Mostrar:</span>${cbHtml('selXl', S.xlExp)}<span class="estado">${filas.length} filas</span><span class="sp"></span>${btn('Exportar a Excel (.xlsx)', 'data-a="xls"' + (puede && filas.length ? '' : ' disabled'), 'def')}</div>`) +
-      `<div class="lv xl" style="height:430px"><table><tr><th>Expediente</th><th>Documento N°</th><th>Fecha documento</th><th>Fecha</th><th>Lugar</th><th>Hora</th><th>Folio</th><th>Placa</th><th>Tipo</th><th>Texto del oficio</th><th>Análisis técnico</th><th>Estado análisis</th></tr>${h}</table></div>` +
-      `<div class="note" style="margin-top:8px">Una fila por placa; la primera columna dice de qué expediente viene. Cada oficio que se carga <b>agrega</b> sus filas; si se vuelve a cargar el mismo expediente, reemplaza las suyas (no duplica). Todos los usuarios con rol pueden ver y descargar esta planilla.${filas.length > 2000 ? ' Se muestran las primeras 2000 filas; el archivo exportado las trae todas.' : ''}</div>`;
+    XL.idx = indiceXl(); precalcXl(); const puede = rolDe(L.usuario) !== 'Espectador' || esTit(), p = partesXl();
+    return frame('Planilla acumulada', `<div class="row"><span>Vista:</span><span class="xseg"><button data-a="xl-vista" data-v="exp" class="${XL.vista === 'exp' ? 'on' : ''}">Por expediente</button><button data-a="xl-vista" data-v="placa" class="${XL.vista === 'placa' ? 'on' : ''}">Por placa (detalle)</button></span>
+      <span style="margin-left:8px">Buscar:</span><span class="cb"><input type="text" class="xlIn" id="xlQ" style="width:330px" value="${esc(XL.q)}" placeholder="placa, expediente, oficio, lugar… o elige un expediente" autocomplete="off"><button class="vb peq" data-a="xl-tog" data-tipf="Mostrar la lista de expedientes">▾</button><div class="cbList" id="xlCbl"></div></span>
+      <span id="xlChips" style="display:flex;gap:6px;align-items:center">${p.chips}</span><span id="xlCnt" style="display:flex;gap:6px">${p.cnt}</span><span class="sp"></span>${btn('Exportar a Excel (.xlsx) ▾', 'data-a="xls"' + (puede ? '' : ' disabled'), 'def')}</div>
+      <div id="xlRes" style="margin-top:8px">${p.res}</div>`) +
+      `<div class="note" style="margin-top:8px">Todos los usuarios con rol pueden ver y descargar esta planilla. Cada oficio que se carga <b>agrega</b> sus filas; si se vuelve a cargar el mismo expediente, reemplaza las suyas.</div>`;
   }
-  const exportarExcel = () => limpio(() => exportarExcel0());
-  async function exportarExcel0() {
-    const X = typeof XLSX !== 'undefined' ? XLSX : W.XLSX; if (!X) { await aviso('No se cargó el componente para crear el Excel (SheetJS). Revisa la conexión y los permisos de Tampermonkey.'); return; }
-    const filas = filasExcel(S.xlExp); if (!filas.length) { await aviso('No hay filas para exportar.'); return; }
-    const ws = X.utils.json_to_sheet(filas.map(f => ({ 'Expediente': f.exp, 'Documento N°': f.numero, 'Fecha documento': f.fechaDoc, 'Fecha': f.fecha, 'Lugar': f.lugar, 'Hora': f.hora, 'Folio': f.folio, 'Placa': f.placa, 'Tipo': f.tipo, 'Texto del oficio': f.texto, 'Análisis técnico': f.analisis, 'Estado análisis': f.estado })));
-    ws['!cols'] = [14, 22, 14, 12, 40, 14, 12, 10, 24, 60, 50, 14].map(w => ({ wch: w })); const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'Acumulado');
-    descargar(new Blob([X.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'PNF-acumulado' + (S.xlExp ? '-' + S.xlExp.replace('/', '-') : '') + '.xlsx'); toast('Excel exportado (' + filas.length + ' filas)');
+  // lista bajo el buscador: hasta 8 expedientes (nunca cientos de filas)
+  function xlLista() {
+    const l = $('#xlCbl'); if (!l) return; const t = ($('#xlQ').value || '').trim(), nq = t.toUpperCase(), MAX = 8, I = XL.idx || (XL.idx = indiceXl());
+    let L2 = I.filter(x => x.sgd !== 'Respondido'); if (nq) L2 = I.filter(x => (x.id + ' ' + x.doc).toUpperCase().includes(nq));
+    const q = consultaXl(), vis = L2.slice(0, MAX);
+    l.innerHTML = (t ? `<div class="cbi" data-a="xl-pick" data-v="__q">🔎 Buscar «${esc(t)}» en todo · ${n0(q.nExp)} expediente(s) · ${n0(q.nFilas)} fila(s)</div>` : '<div class="cbi" data-a="xl-pick" data-v="">★ Todos los expedientes</div>') +
+      vis.map(x => `<div class="cbi" data-a="xl-pick" data-v="${esc(x.id)}"><b class="mono">${esc(x.id)}</b> · ${esc(x.doc)} <span class="estado ${claseEstado(x.sgd)}">${esc(x.sgd)}</span></div>`).join('') +
+      (t && !L2.length ? '' : `<div class="cbf">${L2.length > MAX ? 'Mostrando ' + MAX + ' de ' + n0(L2.length) + (nq ? ' expedientes que coinciden' : ' pendientes') + '. Sigue escribiendo para acotar.' : L2.length + (nq ? ' expediente(s) que coinciden' : ' pendiente(s)')}${nq ? '' : ' · escribe para buscar también entre los respondidos (' + I.length + ' en total)'}</div>`);
+    l.classList.add('on');
   }
+  function xlEntrada(v) { XL.q = v; XL.pag = 1; pintaXl(); xlLista(); }
+  function xlTam(k, v) { if (k === 'det') { XL.det.tam = v; XL.det.pag = 1; pintaDetXl(); } else { XL.tam = v; XL.pag = 1; pintaXl(); } }
+
+  /* — ventana de detalle de un expediente (las tablas como llegan en el oficio) — */
+  const ORIGEN_XL = t => ['FECHA', 'LUGAR', 'HORA', 'FOLIO N°', 'PLACA PATENTE', t, 'ANÁLISIS TÉCNICO'];
+  const xlDetX = () => (XL.idx || []).find(z => z.id === XL.det.exp);
+  function filasDetXl() { const x = xlDetX(); if (!x) return []; const nq = nzx(XL.det.q); return nq ? x.rows.filter(r => hayDet(r).includes(nq)) : x.rows; }
+  function cuerpoDetXl() {
+    const d = XL.det, filas = filasDetXl(), nq = nzx(d.q), pags = Math.max(1, Math.ceil(filas.length / d.tam)); d.pag = Math.min(d.pag, pags);
+    const vis = filas.slice((d.pag - 1) * d.tam, d.pag * d.tam); let h = '', ult = null;
+    vis.forEach(r => { if (r.tipo !== ult) { h += `<tr class="xband">${ORIGEN_XL(r.tipo).map(t => `<th>${esc(t)}</th>`).join('')}</tr>`; ult = r.tipo; }
+      h += `<tr class="${nq && hayDet(r).includes(nq) ? 'xhit' : ''}"><td>${esc(r.fecha)}</td><td data-tip="${esc(r.lugar)}">${esc(r.lugar)}</td><td>${esc(r.hora)}</td><td>${esc(r.folio)}</td><td class="mono"><b>${marcaXl(r.placa, nq)}</b></td><td data-tip="${esc(r.texto)}">${esc(r.texto)}</td>${celdaAnXl(r)}</tr>`; });
+    return `<div class="tw" style="max-height:calc(100vh - 330px);overflow:auto"><table class="t"><colgroup><col style="width:88px"><col style="width:23%"><col style="width:52px"><col style="width:70px"><col style="width:100px"><col><col style="width:25%"></colgroup><tbody>${h || '<tr><td colspan="7" style="text-align:center;padding:14px;color:#666">Ninguna placa coincide con la búsqueda.</td></tr>'}</tbody></table></div>` + pagerXl(filas.length, d.pag, d.tam, 'det');
+  }
+  function pintaDetXl() {
+    const x = xlDetX(); if (!x) return; const n = filasDetXl().length;
+    $('#xlDcnt').innerHTML = `<b>${n0(n)}</b>${n !== x.rows.length ? ' de ' + n0(x.rows.length) : ''} placas`;
+    const c = $('#xlB [data-a="xl-copiar"]'), dl = $('#xlB [data-a="xl-descargar"]');
+    if (c) c.dataset.tipf = 'Copia al portapapeles ' + (n === 1 ? 'la fila' : 'las ' + n0(n) + ' filas') + ' (con sus títulos) para pegar' + (n === 1 ? 'la' : 'las') + ' en Excel con Ctrl+V'; if (dl) dl.dataset.tipf = 'Descarga un archivo Excel con ' + (n === 1 ? 'esta fila' : 'estas ' + n0(n) + ' filas');
+    $('#xlDcuerpo').innerHTML = cuerpoDetXl();
+  }
+  function abrirDetalleXl(id) {
+    const I = XL.idx || (XL.idx = indiceXl()), x = I.find(z => z.id === id); if (!x) return; const q = consultaXl(), z = q.lista.find(w => w.x.id === id);
+    XL.det = { exp: id, q: z && z.hits.length ? XL.q : '', pag: 1, tam: 50 };   // si vienes de buscar una placa, la ventana ya la trae escrita
+    $('#xlT').textContent = 'Detalle · ' + x.id + ' · ' + x.doc;
+    $('#xlB').innerHTML = `<div style="margin-bottom:6px">Doc. <b>${esc(x.fechaDoc)}</b> · Llegó <b>${esc(x.llegada)}</b> · <span class="estado ${claseEstado(x.sgd)}">${esc(x.sgd)}</span> · Análisis <b>${x.bok}/${x.nb}</b> · Memo ${x.memo ? 'listo' : 'sin generar'}</div>
+      <div class="row" style="margin-bottom:6px;flex-wrap:nowrap"><span id="xlDcnt" style="white-space:nowrap"></span><input type="text" id="xlDq" style="flex:1;min-width:120px" value="${esc(XL.det.q)}" placeholder="Buscar en este expediente: placa, infracción, análisis o lugar…" autocomplete="off">${btn('✕', 'data-a="xl-dclr" data-tipf="Borrar la búsqueda y volver a ver todas las placas"', 'peq')}${btn('📋 Copiar', 'data-a="xl-copiar" data-tipf=""', 'peq')}${btn('⬇ Descargar Excel', 'data-a="xl-descargar" data-tipf=""', 'peq def')}</div><div id="xlDmsg"></div><div id="xlDcuerpo"></div>`;
+    $('#xlOv').classList.add('on'); pintaDetXl();
+  }
+  function cerrarDetXl() { $('#xlOv').classList.remove('on'); XL.det.exp = ''; }
+  async function copiarDetXl() {
+    const x = xlDetX(), filas = filasDetXl(); if (!x) return; const cel = v => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ');
+    const tsv = [COLS_XL.join('\t')].concat(filas.map(r => filaXl(x, r).map(cel).join('\t'))).join('\n'); let ok = false;
+    try { await navigator.clipboard.writeText(tsv); ok = true; } catch (e) { try { const ta = document.createElement('textarea'); ta.value = tsv; ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch (e2) { ok = false; } }
+    $('#xlDmsg').innerHTML = `<div class="note ${ok ? 'ok' : 'mal'}" style="margin:0 0 6px">${ok ? '✔ ' + (filas.length === 1 ? 'Copiada 1 fila' : 'Copiadas ' + n0(filas.length) + ' filas') + ' (con sus títulos). Pégalas en Excel con Ctrl+V.' : 'No se pudo copiar: el navegador no dio permiso. Usa «Descargar Excel».'}</div>`;
+  }
+
+  /* — exportar a Excel (con menú) — */
+  const XLSX_LIB = () => (typeof XLSX !== 'undefined' ? XLSX : W.XLSX);
+  const hojaXl = (X, wb, nombre, filas, anchos) => { const ws = X.utils.json_to_sheet(filas); ws['!cols'] = anchos.map(w => ({ wch: w })); X.utils.book_append_sheet(wb, ws, nombre); };
+  const filasDetalleXl = lista => { const out = []; lista.forEach(z => z.filas.forEach(r => { const a = filaXl(z.x, r), o = {}; COLS_XL.forEach((c, i) => { o[c] = a[i]; }); out.push(o); })); return out; };
+  const exportarXl = (fmt, alc) => limpio(() => exportarXl0(fmt, alc));
+  async function exportarXl0(fmt, alc) {
+    const X = XLSX_LIB(); if (!X) { await aviso('No se cargó el componente para crear el Excel (SheetJS). Revisa la conexión y los permisos de Tampermonkey.'); return; }
+    const I = XL.idx || (XL.idx = indiceXl()), vista = hayFiltroXl() && alc !== 'todo', lista = vista ? consultaXl().lista : I.map(x => ({ x, filas: x.rows })), wb = X.utils.book_new(); let nE = 0, nF = 0;
+    if (fmt === 'exp' || fmt === 'ambos') { const f = lista.map(z => ({ 'Expediente': z.x.id, 'Documento N°': z.x.doc, 'Fecha documento': z.x.fechaDoc, 'Llegó': z.x.llegada, 'Estado en el SGD': z.x.sgd, 'Placas': z.x.placas, 'Análisis confirmados': z.x.bok + '/' + z.x.nb, 'Memo': z.x.memo ? 'Sí' : 'No', 'Cargado por': z.x.por })); nE = f.length; if (f.length) hojaXl(X, wb, 'Expedientes', f, [14, 24, 14, 12, 16, 8, 12, 7, 14]); }
+    if (fmt === 'det' || fmt === 'ambos') { const f = filasDetalleXl(lista); nF = f.length; if (f.length) hojaXl(X, wb, 'Detalle', f, [14, 22, 14, 12, 40, 14, 12, 10, 24, 60, 50, 14]); }
+    if (!wb.SheetNames.length) { await aviso('No hay filas para exportar.'); return; }
+    const suf = vista ? '-' + [XL.sel.replace('/', '-'), nzx(XL.q)].filter(Boolean).join('-') : '';
+    descargar(new Blob([X.write(wb, { bookType: 'xlsx', type: 'array' })], { type: MIME_XLSX }), 'PNF-acumulado' + suf + '.xlsx');
+    toast('Excel exportado (' + wb.SheetNames.map(n => n + ': ' + n0(n === 'Expedientes' ? nE : nF)).join(' · ') + ')');
+  }
+  const exportarDetXl = () => limpio(async () => {
+    const X = XLSX_LIB(), x = xlDetX(); if (!X || !x) { await aviso('No se cargó el componente para crear el Excel (SheetJS).'); return; }
+    const f = filasDetalleXl([{ x, filas: filasDetXl() }]); if (!f.length) { await aviso('No hay filas para descargar.'); return; }
+    const wb = X.utils.book_new(); hojaXl(X, wb, 'Detalle', f, [14, 22, 14, 12, 40, 14, 12, 10, 24, 60, 50, 14]);
+    descargar(new Blob([X.write(wb, { bookType: 'xlsx', type: 'array' })], { type: MIME_XLSX }), 'PNF-' + x.id.replace('/', '-') + '.xlsx'); toast('Excel descargado (' + n0(f.length) + ' filas)');
+  });
+  const MINI_XL = {
+    exp: '<table class="xmini"><tr><th>Expediente</th><th>Documento</th><th>Placas</th></tr><tr><td>E1</td><td>Carta 6049</td><td>12</td></tr><tr><td>E2</td><td>Oficio 6133</td><td>17</td></tr><tr><td>E3</td><td>Carta 6200</td><td>9</td></tr></table>',
+    det: '<table class="xmini"><tr><th>Expediente</th><th>Placa</th><th>Lugar</th></tr><tr><td>E1</td><td>KCYL18</td><td>Av. Carrera…</td></tr><tr class="rep"><td>E1</td><td>FPHV99</td><td>Av. Carrera…</td></tr><tr class="rep"><td>E1</td><td>JSXG02</td><td>Ruta 5 Sur…</td></tr><tr><td>E2</td><td>HZZX38</td><td>Terminal…</td></tr></table>',
+    ambos: '<span class="xhoja">Hoja 1 · Expedientes</span><table class="xmini"><tr><th>Expediente</th><th>Doc.</th></tr><tr><td>E1</td><td>Carta 6049</td></tr><tr><td>E2</td><td>Oficio 6133</td></tr></table><span class="xhoja">Hoja 2 · Detalle</span><table class="xmini"><tr><th>Expediente</th><th>Placa</th></tr><tr><td>E1</td><td>KCYL18</td></tr><tr class="rep"><td>E1</td><td>FPHV99</td></tr></table>'
+  };
+  function cuerpoExportarXl() {
+    const I = XL.idx || (XL.idx = indiceXl()), q = consultaXl(), filtrado = hayFiltroXl(), vista = filtrado && XL.alc !== 'todo', nE = vista ? q.nExp : I.length, nF = vista ? q.nFilas : (() => { let t = 0; for (let k = 0; k < I.length; k++) t += I[k].placas; return t; })();
+    const suf = vista ? '-' + [XL.sel.replace('/', '-'), nzx(XL.q)].filter(Boolean).join('-') : '';
+    const card = (k, t, n) => `<div class="xcard ${XL.fmt === k ? 'on' : ''}" data-a="xl-fmt" data-v="${k}"><div class="xct">${t}</div><div class="xcn">${n}</div>${MINI_XL[k]}</div>`;
+    return (filtrado ? `<div class="row" style="margin-bottom:8px"><b>Se exporta:</b><span class="xseg"><button data-a="xl-alc" data-v="vista" class="${vista ? 'on' : ''}">Solo lo filtrado (${n0(q.nExp)})</button><button data-a="xl-alc" data-v="todo" class="${!vista ? 'on' : ''}">Todo el acumulado (${n0(I.length)})</button></span></div>` : '') +
+      `<div class="xcards">${card('exp', 'Lista de expedientes', n0(nE) + ' filas')}${card('det', 'Detalle de cada expediente', n0(nF) + ' filas')}${card('ambos', 'Las dos cosas', '2 hojas en un Excel')}</div><div class="xsmall" style="margin-top:8px">Archivo: <b class="mono">PNF-acumulado${esc(suf)}.xlsx</b></div>`;
+  }
+  async function abrirExportarXl() {
+    XL.idx = indiceXl(); XL.fmt = hayFiltroXl() ? 'exp' : 'det'; XL.alc = 'vista';
+    $('#mb').style.width = '760px'; const r = await dialogo('Exportar a Excel', cuerpoExportarXl(), [['hacer', 'Exportar', true], ['no', 'Cancelar']]); $('#mb').style.width = '';
+    if (r === 'hacer') await exportarXl(XL.fmt, XL.alc);
+  }
+
 
   /* ═══════════════ 14 · Oficios agregados por supervisores (buzón en la carpeta compartida) ═══════════════ */
   FS.leerBytes = async function (nombre, sub) { let d = this.h; try { if (sub) d = await d.getDirectoryHandle(sub); const f = await (await d.getFileHandle(nombre)).getFile(); return new Uint8Array(await f.arrayBuffer()); } catch (e) { if (e && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError')) return null; throw e; } };
@@ -1804,6 +1998,6 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
     if (esTit() && S.ofrecer) { await adoptar(); render(); }
     iniciarSondeo();
   }
-  if (W.__PNF_TEST) W.__PNF = { S, L, get R() { return R; }, set R(v) { R = v; }, get D() { return D; }, set D(v) { D = v; }, get V() { return V; }, FS, root, render, guardar, guardarRoles, sincronizar, conectar, elegirCarpeta, verificarBandeja, enviarSGD, filasBandeja, leerBandejaCompleta, correrRun, reanudarRun, cancelarRun, paginaSGD, get RUN() { return RUN; }, set RUN(v) { RUN = v; }, aplicarReglas, sugerir, conteo, textoAn, hojaMemo, paginasMemo, memoPDF, memoWord, nombreMemo, filasExcel, exportarExcel, leerAportes, escribirAporte, procesarBuzon, agregarOficioSupervisor, incorporarOficio, descargarMemo, accionAnalisis, vAnalisis, vMemo, vExcel, vSup, leerArchivo, cargarArchivos, agregarPend, descartarPend, errTxt, comparar, agrupar, filasOf, renderTabla, leerExpediente, leerDocumento, leerEncabezado, filasNormal, lineasPagina, lector, PDFS, cbAbrir, quitarOficio, corregirDatos, entradaPend, leerSesionSGD, verificarSesion, mismoNombre, candidatosPorNombre, guiaCarpeta, alertas, esTit, esAdm, pinOk, cmpVer, aplicarTraspaso, cargarDeCarpeta, copiaSeguridad, escribirDatos, iniciarSondeo, minimizar, restaurar, actualizar, identificar, VERSION };
+  if (W.__PNF_TEST) W.__PNF = { S, L, get R() { return R; }, set R(v) { R = v; }, get D() { return D; }, set D(v) { D = v; }, get V() { return V; }, FS, root, render, guardar, guardarRoles, sincronizar, conectar, elegirCarpeta, verificarBandeja, enviarSGD, filasBandeja, leerBandejaCompleta, correrRun, reanudarRun, cancelarRun, paginaSGD, get RUN() { return RUN; }, set RUN(v) { RUN = v; }, aplicarReglas, sugerir, conteo, textoAn, hojaMemo, paginasMemo, memoPDF, memoWord, nombreMemo, XL, consultaXl, indiceXl, exportarXl, abrirExportarXl, cuerpoExportarXl, abrirDetalleXl, filasDetXl, copiarDetXl, exportarDetXl, leerAportes, escribirAporte, procesarBuzon, agregarOficioSupervisor, incorporarOficio, descargarMemo, accionAnalisis, vAnalisis, vMemo, vExcel, vSup, leerArchivo, cargarArchivos, agregarPend, descartarPend, errTxt, comparar, agrupar, filasOf, renderTabla, leerExpediente, leerDocumento, leerEncabezado, filasNormal, lineasPagina, lector, PDFS, cbAbrir, quitarOficio, corregirDatos, entradaPend, leerSesionSGD, verificarSesion, mismoNombre, candidatosPorNombre, guiaCarpeta, alertas, esTit, esAdm, pinOk, cmpVer, aplicarTraspaso, cargarDeCarpeta, copiaSeguridad, escribirDatos, iniciarSondeo, minimizar, restaurar, actualizar, identificar, VERSION };
   iniciar();
 })();
