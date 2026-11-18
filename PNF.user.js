@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PNF · Respuesta a oficios de Fiscalización
 // @namespace    pnf.seremitt
-// @version      0.4.4
+// @version      0.4.5
 // @description  Responde los oficios de Fiscalización desde el SGD: lee el oficio, arma el análisis técnico y el memo, y lo envía. Ventana, configuración, respaldo, usuarios, alertas, lectura de oficios, análisis técnico, memo, Excel y aportes de supervisores.
 // @match        https://sgd.mtt.cl/*
 // @noframes
@@ -24,7 +24,7 @@
 
 (function () {
   'use strict';
-  const VERSION = '0.4.4';
+  const VERSION = '0.4.5';
   const URL_ACTUALIZAR = 'https://raw.githubusercontent.com/paralepepipedo/PNF/main/PNF.user.js'; // debe coincidir con @updateURL
   const W = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
   if (window.top !== window.self || document.getElementById('pnf-host')) return;
@@ -39,6 +39,7 @@
   function arr(v) { if (typeof v === 'string' && /^\s*\[/.test(v)) { try { const x = JSON.parse(v); if (Array.isArray(x)) return x; } catch (e) { /* no era un arreglo */ } } return v; }
   function normD(d) {
     d.catalogo = arr(d.catalogo); (Array.isArray(d.catalogo) ? d.catalogo : []).forEach(c => { c.kw = arr(c.kw); });
+    if (Array.isArray(d.catalogo) && !d.catalogo.some(c => c.id === 'nocursar')) d.catalogo.push({ id: 'nocursar', t: 'No se puede cursar infracción', kw: [] });   // datos guardados antes de la v0.4.5
     if (d.cfg) d.cfg.personas = arr(d.cfg.personas);
     Object.keys(d.oficios || {}).forEach(e => { const o = d.oficios[e]; o.bloques = arr(o.bloques); (Array.isArray(o.bloques) ? o.bloques : []).forEach(b => { b.items = arr(b.items); }); });
     return d;
@@ -125,7 +126,8 @@
     { id: 'revisar', t: '', kw: ['cancelado temporalmente'], dejar: true },
     { id: 'novehic', t: 'No se detectaron vehículos', kw: ['sin ppu', 'no se observan', 'no fue posible constatar', 'no logrando observar'] },
     { id: 'noinf', t: 'No se indica alguna infracción', kw: ['totalidad de la documentación', 'cumpliendo con', 'se realiza recorrido', 'efectúa recorrido por'] },
-    { id: 'insumo', t: 'No contamos con el insumo para definir si corresponde o no', kw: [], porDefecto: 'INF' }
+    { id: 'insumo', t: 'No contamos con el insumo para definir si corresponde o no', kw: [], porDefecto: 'INF' },
+    { id: 'nocursar', t: 'No se puede cursar infracción', kw: [] }   // se sugiere solo para las placas con folio sin número (vehículo particular…)
   ];
   const CFG0 = {
     de: { nombre: 'MARCELA CANALES INFANTE', cargo: 'ENCARGADA ÁREA DE OPERACIONES - SEREMITT.' },
@@ -419,6 +421,7 @@ td.sug { background:var(--warn) !important; } td.okc { background:var(--ok) !imp
 .lv tr.foco td { box-shadow:inset 0 2px 0 var(--acc), inset 0 -2px 0 var(--acc); }
 .lv td.alt { background:var(--band) !important; } .lv td.nor { background:#fff !important; }
 .pl { display:inline-block; font-family:"Courier New",monospace; font-size:12px; padding:0 4px; margin:1px 2px 1px 0; border-radius:3px; border:1px solid #ddd; background:#fff; }
+.sepnota { font-size:10.5px; color:#8a4b00; margin-top:3px; line-height:1.25; }
 .sinppu { color:#888; font-style:italic; font-family:"Courier New",monospace; font-size:12px; }
 .fol { font-family:"Courier New",monospace; font-size:12px; color:#17387a; white-space:nowrap; } .fcorto { display:inline-block; max-width:12ch; overflow:hidden; text-overflow:ellipsis; vertical-align:top; }
 .txt { max-width:330px; } .txt.ancho { max-width:560px; min-width:320px; }
@@ -1007,10 +1010,25 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
     });
     return { ok: !soloA.length && !soloB.length, soloA, soloB, menores };
   }
+  // Regla de los folios sin número («Vehículo Particular», «Auto Particular»…): en un bloque INFRACCIÓN esas placas no pueden ser infraccionadas igual que las que tienen folio,
+  // así que pasan a una fila nueva (mismos datos del bloque, todas juntas). Un folio vacío NO cuenta: sería una lectura fallida, no un vehículo particular.
+  const folioSinNum = f => { const t = String(f == null ? '' : f).trim(); return t !== '' && !/^\d+$/.test(t); };
+  function separarSinNumero(bloques) {
+    const out = [];
+    bloques.forEach(b => {
+      const inf = /^INFRACC/i.test(b.tipo), part = [], resto = [];
+      b.items.forEach(i => (inf && folioSinNum(i.f) ? part : resto).push(i));
+      if (!part.length) { out.push(b); return; }
+      if (!resto.length) { b.sep = 'todo'; out.push(b); return; }
+      b.items = resto; b.sep = 'orig';
+      out.push(b, { fecha: b.fecha, lugar: b.lugar, tipo: b.tipo, texto: b.texto, items: part, cat: null, custom: '', st: 'sin', sep: 'part' });
+    });
+    return out;
+  }
   function agrupar(filas) {
     const out = []; let ult = null;
     filas.forEach(f => { const k = [f.t, f.fecha, f.lugar, f.titulo, f.texto].join('\u0001'); const it = { h: f.hora, f: f.folio, p: f.placa }; if (ult && ult.k === k) ult.b.items.push(it); else { ult = { k, b: { fecha: f.fecha, lugar: f.lugar, tipo: f.titulo, texto: f.texto, items: [it], cat: null, custom: '', st: 'sin' } }; out.push(ult.b); } });
-    return out;
+    return separarSinNumero(out);
   }
   const filasDe = e => (e.usa === 'ia' && e.ia ? e.ia.filas : e.normal.filas);
   const filasDeOficio = o => (o.bloques || []).flatMap(b => b.items.map(i => ({ fecha: b.fecha, lugar: b.lugar, titulo: b.tipo, texto: b.texto, hora: i.h, folio: i.f, placa: i.p })));
@@ -1206,6 +1224,7 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
   const exAct = () => S.exp || S.sel || '';
   const ofAct = () => (datos().oficios || {})[exAct()];
   function sugerir(b) {
+    if ((b.sep === 'part' || b.sep === 'todo') && catalogo().some(c => c.id === 'nocursar')) return 'nocursar';
     const h = (b.texto + ' ' + b.items.map(i => i.p).join(' ')).toLowerCase(), cat = catalogo();
     for (const c of cat) if ((c.kw || []).some(k => k && h.includes(k.toLowerCase()))) return c.id;
     const d = cat.find(c => c.porDefecto === (/^INFRACC/i.test(b.tipo) ? 'INF' : b.tipo));
@@ -1249,7 +1268,7 @@ Tablas: cada tabla del oficio que empieza con el encabezado FECHA | LUGAR | HORA
       if (!gr.length) gr.push({ f: '', its: [] });
       const rs = gr.length;
       const hint = b.st === 'sin' && !b.cat ? '<div style="color:#900;font-size:11px;margin-top:2px">Sin análisis sugerido: elige uno de la lista (o escribe un texto propio).</div>' : '';
-      const ini = `<td rowspan="${rs}" class="${alt}"><input type="checkbox" data-selb="${i}" ${S.selB.has(i) ? 'checked' : ''} ${dis}></td><td rowspan="${rs}" class="${alt}" style="white-space:nowrap">${esc(b.fecha)}</td><td rowspan="${rs}" class="txt ${alt}">${esc(b.lugar)}</td><td rowspan="${rs}" class="${alt}">${esc(b.tipo)}</td><td rowspan="${rs}" class="txt ancho ${alt}">${esc(b.texto)}</td>`;
+      const ini = `<td rowspan="${rs}" class="${alt}"><input type="checkbox" data-selb="${i}" ${S.selB.has(i) ? 'checked' : ''} ${dis}></td><td rowspan="${rs}" class="${alt}" style="white-space:nowrap">${esc(b.fecha)}</td><td rowspan="${rs}" class="txt ${alt}">${esc(b.lugar)}</td><td rowspan="${rs}" class="${alt}">${esc(b.tipo)}${b.sep === 'part' ? '<div class="sepnota">↳ separado del bloque de arriba: folio sin número</div>' : b.sep === 'orig' ? '<div class="sepnota">sin las placas de folio sin número (van en la fila de abajo)</div>' : b.sep === 'todo' ? '<div class="sepnota">todas sus placas tienen folio sin número</div>' : ''}</td><td rowspan="${rs}" class="txt ancho ${alt}">${esc(b.texto)}</td>`;
       const fin = `<td rowspan="${rs}" class="${cls}" style="min-width:300px"><div class="an"><span>${b.cat === 'custom' ? '✎ Texto propio…' : textoAn(b) ? esc(textoAn(b)) : '<span style="color:#777">— elegir —</span>'}</span><select data-catb="${i}" ${dis}>${optCat(b.cat)}</select></div>${b.cat === 'custom' ? `<input type="text" data-cus="${i}" value="${esc(b.custom)}" placeholder="Escribe el análisis…" style="width:100%;margin-top:3px" ${dis}>` : ''}${hint}</td>` +
         `<td rowspan="${rs}" class="${cls}">${estCel(b, i, dis)}</td>`;
       const folTd = g => `<td class="${alt}"><span class="fol fcorto"${g.f.length > 12 ? ' data-tipf="Folio ' + esc(g.f) + '"' : ''}>${g.f ? esc(g.f) : '—'}</span></td>`;
